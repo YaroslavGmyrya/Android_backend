@@ -1,5 +1,16 @@
 import socket
 import json
+import sys
+import signal
+
+#CTRL+C handler
+def handle_stop(signum, frame):
+    print("Stop server")
+    sys.exit(0)
+
+print("Start server")
+
+signal.signal(signal.SIGINT, handle_stop)
 
 #define port number
 port = 5000
