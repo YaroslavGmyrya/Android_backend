@@ -34,13 +34,14 @@ int main(){
 
     char buffer[BUFFER_SIZE] = {0};
 
+    //create socket
     if ((my_socket = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         printf("\nERROR IN SOCKET CREATE\n");
         return -1;
     }
 
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(PORT);
+    serv_addr.sin_family = AF_INET; // define type of IP (v4 or v6)
+    serv_addr.sin_port = htons(PORT); // define server port
 
     //translate const char* to IP format
     if (inet_pton(AF_INET, SERVER_IP, &serv_addr.sin_addr) <= 0) {
@@ -48,6 +49,7 @@ int main(){
         return -1;
     }
 
+    //connect to server
     if (connect(my_socket, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         printf("\nConnection Failed \n");
         return -1;
@@ -55,6 +57,7 @@ int main(){
 
     printf("CONNECT TO SERVER [PORT, IP] %s:%d\n", SERVER_IP, PORT);
 
+    //start data transmission
     while (1){
         size_byte = send(my_socket, MESSAGE, strlen(MESSAGE), 0);
         printf("CLIENT SEND TO SERVER %d BYTE\n", size_byte);

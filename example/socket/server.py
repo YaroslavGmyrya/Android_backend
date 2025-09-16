@@ -25,16 +25,19 @@ my_socket.listen()
 
 MESSAGE = "HELLO FROM SERVER"
 
+#start data transmission
 while True:
+        # wait connection from C-client
         client_socket, address = my_socket.accept()
 
         print(f"Connection from: {address}")
 
         while True:
+                #get data from client
                 data = client_socket.recv(1024)
 
                 if len(data) != 0:
-
                         print(f"RECEIVED FROM CLIENT: {data.decode()}")
 
+                #send response
                 client_socket.sendall(MESSAGE.encode('utf-8'))
