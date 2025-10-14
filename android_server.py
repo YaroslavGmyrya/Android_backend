@@ -2,6 +2,7 @@ import socket
 import json
 import sys
 import signal
+import psycopg2
 
 #CTRL+C handler
 def handle_stop(signum, frame):
@@ -12,8 +13,31 @@ print("Start server")
 
 signal.signal(signal.SIGINT, handle_stop)
 
+# connect to db
+conn_db = psycopg2.connect(
+	dbname="postgres",
+	user="postgres",
+	password="yaroslav",
+	host="localhost",
+	port="5433"
+)
+
+# get cursor object
+cur = conn_db.cursor()
+       
+# send command       
+cur.execute
+(       
+        '''
+        
+        '''
+)
+
+# commit command
+conn_db.commit()
+
 #define port number
-port = 5000
+port = 3500
 
 #create and bind socket
 my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -24,17 +48,17 @@ my_socket.listen()
 
 location_history = []
 
-#start data transmission
-while True:
-        #wait connection from Kotlin-client
-        client_socket, address = my_socket.accept()
-        print(f"Connection from: {address}")
+# start data transmission
+# while True:
+#         #wait connection from Kotlin-client
+#         client_socket, address = my_socket.accept()
+#         print(f"Connection from: {address}")
 
-        while True:
-                #receive data
-                data = client_socket.recv(1024)
+#         while True:
+#                 #receive data
+#                 data = client_socket.recv(1024)
 
-                if len(data) != 0:
-                        location_history.append(json.loads(data))
-                        print(f"Received: {data.decode()}")
+#                 if len(data) != 0:
+#                         location_history.append(json.loads(data))
+#                         print(f"Received: {data.decode()}")
 
