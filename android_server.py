@@ -1,64 +1,111 @@
-import socket
+import asyncio
 import json
-import sys
-import signal
 import psycopg2
+import websockets
+from datetime import datetime
 
-#CTRL+C handler
-def handle_stop(signum, frame):
-    print("Stop server")
-    sys.exit(0)
-
-print("Start server")
-
-signal.signal(signal.SIGINT, handle_stop)
-
-# connect to db
+#connect to database 
 conn_db = psycopg2.connect(
-	dbname="postgres",
-	user="postgres",
-	password="yaroslav",
-	host="localhost",
-	port="5433"
+    dbname="postgres",
+    user="postgres",
+    password="yaroslav",
+    host="localhost",
+    port="5433"
 )
 
-# get cursor object
+#object for working with db
 cur = conn_db.cursor()
-       
-# send command       
-cur.execute
-(       
-        '''
-        
-        '''
-)
 
-# commit command
-conn_db.commit()
+#get latest row
+cur.execute('SELECT MAX("time") FROM android_info')
+row = cur.fetchone()
+max_time = row[0] if row and row[0] is not None else 0
 
-#define port number
-port = 3500
+last = "{}"
+flag = asyncio.Event()
 
-#create and bind socket
-my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-my_socket.bind(("0.0.0.0", port))
+#android server logic work
+async def android(reader, writer):
+	global last
+	global max_time
+ 
+	buffer = b""
+ 
+	while True:
+		data = await reader.read(4096)
+  
+		print(data)
 
-#start listen
-my_socket.listen()
+		buffer += data
+  
+		while b"|||" in buffer:
+			line, buffer = buffer.split(b"|||", 1)
+   
+			if not line:
+				continue
 
-location_history = []
+			obj = json.loads(line.decode())
+		
+			if obj['time'] <= max_time:
+				continue 
+			
+			max_time = obj['time']
+			
+			date = datetime.fromtimestamp(obj['time'] / 1000)
+		
+			cur.execute(
+				'''
+				INSERT INTO android_info (
+					latitude, longitude, altitude,
+					accuracy, speed, net_type, signal_lvl,
+					band, earfcn, mcc, mnc, pci, tac, bandwidth,
+					operator, rssi, rssnr, rsrp, rsrq, asu_level,
+					cqi, timing_advance, bsic, arfcn, lac, mcc_gsm,
+					psc, dbm, rssi_gsm, timing_advance_gsm, ber,
+					asu_level_gsm, mnc_gsm, ddate, time
+				) VALUES (
+					%s, %s, %s, %s, %s, %s, %s,
+					%s, %s, %s, %s, %s, %s, %s,
+					%s, %s, %s, %s, %s, %s,
+					%s, %s, %s, %s, %s, %s,
+					%s, %s, %s, %s, %s, %s, %s, %s, %s
+				)
+				''',
+				(
+					obj["latitude"], obj["longitude"], obj["altitude"],
+					obj["accuracy"], obj["speed"], obj["net_type"],
+					obj["signal_lvl"], obj["band"], obj["earfcn"],
+					obj["mcc"], obj["mnc"], obj["pci"], obj["tac"],
+					obj["bandwidth"], obj["operator"], obj["rssi"],
+					obj["rssnr"], obj["rsrp"], obj["rsrq"], obj["asu_level"],
+					obj["cqi"], obj["timing_advance"], obj["bsic"],
+					obj["arfcn"], obj["lac"], obj["mcc_gsm"], obj["psc"],
+					obj["dbm"], obj["rssi_gsm"], obj["timing_advance_gsm"],
+					obj["ber"], obj["asu_level_gsm"], obj["mnc_gsm"], date, obj['time']
+				)
+			)
+			conn_db.commit()
 
-# start data transmission
-# while True:
-#         #wait connection from Kotlin-client
-#         client_socket, address = my_socket.accept()
-#         print(f"Connection from: {address}")
+			last = json.dumps(obj)
+			print("Server receive from android: ", last)
 
-#         while True:
-#                 #receive data
-#                 data = client_socket.recv(1024)
+			#signal to websocket (up flag)
+			flag.set()
 
-#                 if len(data) != 0:
-#                         location_history.append(json.loads(data))
-#                         print(f"Received: {data.decode()}")
+#send data to web
+async def send_to_websocket(ws):
+    while True:
+        #wait flag
+        await flag.wait()
+        await ws.send(last)
+        #down flag
+        flag.clear()
 
+async def main():
+    print("Start server!")
+    await asyncio.start_server(android, "0.0.0.0", 3500)
+    await websockets.serve(send_to_websocket, "0.0.0.0", 3600)
+    
+    await asyncio.Future()
+
+asyncio.run(main())
